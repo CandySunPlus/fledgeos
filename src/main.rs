@@ -2,7 +2,8 @@
 #![no_main]
 #![feature(core_intrinsics, lang_items)]
 
-use core::intrinsics;
+use core::fmt;
+use core::fmt::Write;
 use core::panic::PanicInfo;
 
 use x86_64::instructions::hlt;
@@ -13,8 +14,24 @@ pub extern "C" fn eh_personality() {}
 
 #[panic_handler]
 #[no_mangle]
-pub fn panic(_info: &PanicInfo) -> ! {
-    intrinsics::abort();
+pub fn panic(info: &PanicInfo) -> ! {
+    let mut cursor = Cursor {
+        position: 0,
+        foreground: Color::White,
+        background: Color::Red,
+    };
+
+    for _ in 0..(80 * 25) {
+        cursor.print(b" ");
+    }
+
+    cursor.position = 0;
+
+    write!(cursor, "{}", info).unwrap();
+
+    loop {
+        hlt()
+    }
 }
 
 #[allow(unused)]
@@ -29,14 +46,14 @@ enum Color {
     Magenta,
     Brown,
     Gray,
-    White,
+    DarkGray,
     LightBlue,
     LightGreen,
     LightCyan,
     LightRed,
     LightMagenta,
     Yellow,
-    DarkGray,
+    White,
 }
 
 struct Cursor {
@@ -66,6 +83,13 @@ impl Cursor {
     }
 }
 
+impl fmt::Write for Cursor {
+    fn write_str(&mut self, s: &str) -> fmt::Result {
+        self.print(s.as_bytes());
+        Ok(())
+    }
+}
+
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     let text = b"Rust in Action";
@@ -77,6 +101,8 @@ pub extern "C" fn _start() -> ! {
     };
 
     cursor.print(text);
+
+    panic!("help!");
 
     loop {
         hlt();
